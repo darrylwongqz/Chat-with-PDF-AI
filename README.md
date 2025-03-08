@@ -4,6 +4,8 @@ An intelligent document assistant that transforms static PDFs into interactive c
 
 ![App Screenshot](https://i.imgur.com/R7m4Oty.png)
 
+**Plug:** **Lorem Word Doc** was generated with [Lorem Generator](https://github.com/darrylwongqz/lorem-generator)
+
 ## 🌟 Features
 
 - **PDF Upload & Management**: Securely upload and manage your PDF documents in the cloud
@@ -14,7 +16,6 @@ An intelligent document assistant that transforms static PDFs into interactive c
 - **Responsive Design**: Seamless experience across desktop and mobile devices
 - **User Authentication**: Secure user accounts and document access
 - **Subscription Tiers**: Free and premium subscription options with different document limits
-- **Lorem Word Doc** was generated with [Lorem Generator](https://github.com/darrylwongqz/lorem-generator)
 
 ## 🔗 Live Demo
 
