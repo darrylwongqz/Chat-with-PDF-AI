@@ -14,8 +14,7 @@ An intelligent document assistant that transforms static PDFs into interactive c
 - **Responsive Design**: Seamless experience across desktop and mobile devices
 - **User Authentication**: Secure user accounts and document access
 - **Subscription Tiers**: Free and premium subscription options with different document limits
-
-Lorem Word Doc was generated with ![Lorem Generator](https://github.com/darrylwongqz/lorem-generator)
+- **Lorem Word Doc** was generated with [Lorem Generator](https://github.com/darrylwongqz/lorem-generator)
 
 ## 🔗 Live Demo
 
