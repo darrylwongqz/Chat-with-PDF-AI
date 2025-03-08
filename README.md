@@ -15,6 +15,8 @@ An intelligent document assistant that transforms static PDFs into interactive c
 - **User Authentication**: Secure user accounts and document access
 - **Subscription Tiers**: Free and premium subscription options with different document limits
 
+Lorem Word Doc was generated with ![Lorem Generator](https://github.com/darrylwongqz/lorem-generator)
+
 ## 🔗 Live Demo
 
 Experience the application live: [Chat with PDF AI](https://chat-with-pdf-ai-three.vercel.app/)
