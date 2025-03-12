@@ -6,7 +6,7 @@ import UpgradeButton from './UpgradeButton';
 
 function Header() {
   return (
-    <div className="flex justify-between bg-white shadow-sm p-5 border-b">
+    <div className="flex justify-between bg-white shadow-sm p-5 border-b relative z-50">
       <Link href="/dashboard" className="text-2xl">
         Chat with{' '}
         <span className="bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text font-bold">

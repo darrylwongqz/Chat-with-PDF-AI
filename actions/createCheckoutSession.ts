@@ -36,6 +36,10 @@ export async function createCheckoutSession(userDetails: UserDetails) {
     stripeCustomerId = customer.id;
   }
 
+  // Get the base URL for redirects
+  const baseUrl = getBaseUrl();
+  console.log(`Using base URL for redirects: ${baseUrl}`);
+
   const session = await stripe.checkout.sessions.create({
     payment_method_types: ['card'],
     line_items: [
@@ -46,8 +50,8 @@ export async function createCheckoutSession(userDetails: UserDetails) {
     ],
     mode: 'subscription',
     customer: stripeCustomerId,
-    success_url: `${getBaseUrl()}/dashboard?upgrade=true`,
-    cancel_url: `${getBaseUrl()}/upgrade`,
+    success_url: `${baseUrl}/dashboard?upgrade=true`,
+    cancel_url: `${baseUrl}/dashboard/upgrade`,
   });
 
   return session.id;

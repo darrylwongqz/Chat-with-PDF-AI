@@ -2,7 +2,7 @@
 require('dotenv').config();
 const { Pinecone } = require('@pinecone-database/pinecone');
 
-const indexName = 'papafam'; // This should match the indexName in lib/langchain.ts
+const indexName = 'chat-with-pdf-ai'; // This should match the indexName in lib/langchain.ts
 
 async function checkPineconeSetup() {
   try {
