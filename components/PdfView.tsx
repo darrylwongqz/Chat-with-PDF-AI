@@ -306,7 +306,7 @@ function PdfView({ url }: { url: string }) {
               loading={
                 <div className="flex flex-col items-center justify-center p-8">
                   <Loader2Icon className="h-12 w-12 animate-spin mb-2" />
-                  <p>Loading PDF directly...</p>
+                  <p>Loading PDF, Please Wait a Moment...</p>
                 </div>
               }
             >
