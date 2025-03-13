@@ -110,14 +110,43 @@ async function deleteFromStorage(userId: string, docId: string): Promise<void> {
  */
 async function deleteFromPinecone(docId: string): Promise<void> {
   try {
+    // Get the Pinecone index
     const index = await pineconeClient.index(indexName);
-    await index.namespace(docId).deleteAll();
+
+    // Check if the namespace exists before attempting to delete
+    try {
+      const stats = await index.describeIndexStats();
+      const namespaces = stats.namespaces || {};
+
+      // Only attempt deletion if the namespace exists
+      if (namespaces[docId]) {
+        // Use deleteAll with proper error handling
+        await index.namespace(docId).deleteAll();
+        console.log(`Successfully deleted vectors for namespace: ${docId}`);
+      } else {
+        console.log(
+          `Namespace ${docId} not found in Pinecone, nothing to delete`
+        );
+      }
+    } catch (statsError) {
+      console.error(`Error checking namespace stats: ${statsError}`);
+      // Continue with deletion attempt even if stats check fails
+      await index.namespace(docId).deleteAll();
+    }
   } catch (error) {
     console.error(`Error deleting from Pinecone:`, error);
-    throw new Error(
-      `Failed to delete vector embeddings: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
+
+    // Check for network-related errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (
+      errorMessage.includes('network') ||
+      errorMessage.includes('reach Pinecone')
+    ) {
+      throw new Error(
+        `Pinecone service may be temporarily unavailable. Please try again later. Error: ${errorMessage}`
+      );
+    } else {
+      throw new Error(`Failed to delete vector embeddings: ${errorMessage}`);
+    }
   }
 }

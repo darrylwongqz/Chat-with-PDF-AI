@@ -54,8 +54,17 @@ The application features a sophisticated PDF processing pipeline designed to opt
 - **Error Detection**: Automatically identifies when minimal text is extracted (< 100 characters) and flags potential scanned documents
 - **Graceful Fallbacks**: Provides informative messages when documents can't be fully processed
 - **Metadata Preservation**: Maintains document metadata throughout the processing pipeline
+- **Document ID Tracking**: Embeds document IDs in metadata to prevent duplicate processing
 
-### 2. Dynamic Chunk Sizing
+### 2. Simplified Table Handling
+
+- **Pattern-Based Detection**: Identifies tables using common patterns (pipe characters, tabs, markdown formatting)
+- **Structure Preservation**: Marks table-containing documents to prevent splitting and preserve table structure
+- **Metadata Enrichment**: Adds table-specific metadata for improved retrieval and context
+- **Processing Efficiency**: Lightweight approach that maintains table integrity without complex parsing
+- **Reliable Recognition**: Works with various table formats including markdown, pipe-delimited, and tab-separated tables
+
+### 3. Dynamic Chunk Sizing
 
 - **Content-Aware Processing**: Analyzes document characteristics to determine optimal chunk sizes
 - **Adaptive Algorithm**: Automatically adjusts chunk size based on:
@@ -69,45 +78,66 @@ The application features a sophisticated PDF processing pipeline designed to opt
   - Very large documents (> 200 pages or > 500K chars): 2000 character chunks
 - **Performance Optimization**: Balances chunk granularity with processing efficiency
 
-### 3. Intelligent Text Splitting
+### 4. Intelligent Text Splitting
 
 - **Context Preservation**: Uses 200-character overlaps between chunks to maintain context across boundaries
 - **Hierarchical Separators**: Prioritizes natural document breaks (paragraphs, sentences, words)
 - **RecursiveCharacterTextSplitter**: Leverages LangChain's advanced text splitting for optimal segmentation
+- **Structure-Aware Processing**: Prevents tables from being split across chunks
+- **Metadata Consistency**: Ensures document IDs and other metadata are preserved during splitting
 
-### 4. Vector Embedding Generation
+### 5. Vector Embedding Generation with Deduplication
 
 - **OpenAI Embeddings**: Converts text chunks into high-dimensional vector representations
 - **Semantic Understanding**: Captures meaning and context, not just keywords
 - **Efficient Storage**: Organizes embeddings in Pinecone vector database for fast retrieval
 - **Namespace Isolation**: Maintains separate vector spaces for each document
+- **Embedding Deduplication**: Robust checks to prevent generating duplicate embeddings for the same document
+- **Enhanced Namespace Verification**: Multiple verification methods to reliably detect existing embeddings
 
-### 5. Retrieval-Augmented Generation
+### 6. Retrieval-Augmented Generation
 
 - **Semantic Search**: Finds the most relevant document chunks based on query similarity
 - **History-Aware Retrieval**: Considers conversation context when retrieving information
 - **Contextual Responses**: Generates answers based on retrieved document content
 - **Source Attribution**: Maintains connection to source material for verification
+- **Table-Aware Responses**: Provides formatted table data when answering queries about tables
 
 ### Technical Implementation
 
 The PDF processing pipeline is implemented in `lib/pdf-processing.ts` with these key components:
 
 ```typescript
-// Core extraction function with error handling
-export async function enhancedPdfLoader(fileBlob: Blob): Promise<Document[]>
+// Core extraction function with error handling and document ID tracking
+export async function enhancedPdfLoader(fileBlob: Blob, docId?: string): Promise<Document[]>
+
+// Simple table detection and preservation
+function preserveTables(docs: Document[], docId?: string): Document[]
 
 // Dynamic chunk sizing based on document characteristics
 function calculateOptimalChunkSize(docs: Document[]): number
 
-// Intelligent text splitting with optimal chunking
+// Intelligent text splitting with metadata preservation
 export async function enhancedTextSplitter(docs: Document[]): Promise<Document[]>
 
 // Main processing pipeline combining all steps
-export async function processPdfWithEnhancedFeatures(fileBlob: Blob): Promise<Document[]>
+export async function processPdfWithEnhancedFeatures(fileBlob: Blob, docId?: string): Promise<Document[]>
 ```
 
-This pipeline ensures that documents of any size or complexity are processed optimally for AI interaction, providing users with accurate and contextually relevant responses to their queries.
+The embedding generation system in `lib/langchain.ts` includes robust deduplication:
+
+```typescript
+// Check if embeddings already exist for a document
+async function namespaceExists(index: Index<RecordMetadata>, namespace: string): Promise<boolean>
+
+// Generate embeddings with deduplication checks
+export async function generateEmbeddingsInPineconeVectorStore(docId: string): Promise<PineconeStore>
+
+// Generate document chunks with consistent document ID tracking
+export async function generateDocs(docId: string): Promise<Document[]>
+```
+
+This pipeline ensures that documents of any size or complexity are processed optimally for AI interaction, providing users with accurate and contextually relevant responses to their queries while preventing redundant processing.
 
 ## 🚀 Getting Started
 

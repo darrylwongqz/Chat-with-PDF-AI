@@ -12,6 +12,66 @@ const BASE_TEXT_SPLITTER_CONFIG = {
 };
 
 /**
+ * Simple table detection and preservation
+ */
+function preserveTables(docs: Document[], docId?: string): Document[] {
+  console.log('--- SIMPLE TABLE PRESERVATION STARTED ---');
+  const enhancedDocs: Document[] = [];
+
+  // Process each document
+  for (const doc of docs) {
+    const content = doc.pageContent;
+
+    // Simple table detection using common patterns
+    const hasTable =
+      (content.includes('|') &&
+        content.split('\n').filter((line) => line.includes('|')).length >= 3) || // Pipe tables
+      (content.includes('\t') &&
+        content.split('\n').filter((line) => line.includes('\t')).length >=
+          3) || // Tab tables
+      /\|\s*-+\s*\|/.test(content); // Markdown tables with separator row
+
+    if (hasTable) {
+      console.log('Table detected in document');
+
+      // Add metadata to indicate this document contains a table
+      enhancedDocs.push(
+        new Document({
+          pageContent: content,
+          metadata: {
+            ...doc.metadata,
+            containsTable: true,
+            // Don't split this document to preserve table structure
+            preserveStructure: true,
+            // Add document ID to metadata if provided
+            ...(docId && { docId }),
+          },
+        })
+      );
+    } else {
+      // Regular document without tables
+      enhancedDocs.push(
+        new Document({
+          pageContent: content,
+          metadata: {
+            ...doc.metadata,
+            // Add document ID to metadata if provided
+            ...(docId && { docId }),
+          },
+        })
+      );
+    }
+  }
+
+  console.log(
+    `--- SIMPLE TABLE PRESERVATION COMPLETE: ${
+      enhancedDocs.filter((d) => d.metadata.containsTable).length
+    } documents with tables ---`
+  );
+  return enhancedDocs;
+}
+
+/**
  * Calculate optimal chunk size based on document size and content
  */
 function calculateOptimalChunkSize(docs: Document[]): number {
@@ -49,8 +109,17 @@ function calculateOptimalChunkSize(docs: Document[]): number {
 /**
  * Enhanced PDF loader with improved error handling
  */
-export async function enhancedPdfLoader(fileBlob: Blob): Promise<Document[]> {
+export async function enhancedPdfLoader(
+  fileBlob: Blob,
+  docId?: string
+): Promise<Document[]> {
   try {
+    console.log(
+      `--- ENHANCED PDF LOADER STARTED ${
+        docId ? `FOR DOC ID: ${docId}` : ''
+      } ---`
+    );
+
     // Standard PDF extraction
     const loader = new PDFLoader(fileBlob);
     const docs = await loader.load();
@@ -74,12 +143,14 @@ export async function enhancedPdfLoader(fileBlob: Blob): Promise<Document[]> {
           metadata: {
             source: docs[0]?.metadata?.source || 'unknown',
             isScannedDocument: true,
+            ...(docId && { docId }),
           },
         }),
       ];
     }
 
-    return docs;
+    // Apply simple table preservation
+    return preserveTables(docs, docId);
   } catch (error) {
     console.error('Error in PDF extraction:', error);
 
@@ -91,6 +162,7 @@ export async function enhancedPdfLoader(fileBlob: Blob): Promise<Document[]> {
         metadata: {
           source: 'error',
           error: error instanceof Error ? error.message : String(error),
+          ...(docId && { docId }),
         },
       }),
     ];
@@ -114,8 +186,28 @@ export async function enhancedTextSplitter(
       chunkSize: optimalChunkSize,
     });
 
-    // Split the documents
-    return await splitter.splitDocuments(docs);
+    // Process regular documents and table documents differently
+    const regularDocs = docs.filter((doc) => !doc.metadata.preserveStructure);
+    const structuredDocs = docs.filter((doc) => doc.metadata.preserveStructure);
+
+    console.log(
+      `Documents to split: ${regularDocs.length}, Documents to preserve: ${structuredDocs.length}`
+    );
+
+    // Split regular documents
+    const splitRegularDocs =
+      regularDocs.length > 0 ? await splitter.splitDocuments(regularDocs) : [];
+
+    // Preserve docId in metadata for all split documents
+    if (regularDocs.length > 0 && regularDocs[0].metadata.docId) {
+      const docId = regularDocs[0].metadata.docId;
+      splitRegularDocs.forEach((doc) => {
+        doc.metadata.docId = docId;
+      });
+    }
+
+    // Combine both types of documents
+    return [...splitRegularDocs, ...structuredDocs];
   } catch (error) {
     console.error('Error in text splitting:', error);
 
@@ -128,11 +220,18 @@ export async function enhancedTextSplitter(
  * Process a PDF with enhanced features
  */
 export async function processPdfWithEnhancedFeatures(
-  fileBlob: Blob
+  fileBlob: Blob,
+  docId?: string
 ): Promise<Document[]> {
   try {
+    console.log(
+      `--- PROCESSING PDF WITH ENHANCED FEATURES ${
+        docId ? `FOR DOC ID: ${docId}` : ''
+      } ---`
+    );
+
     // Load the PDF with enhanced features
-    const docs = await enhancedPdfLoader(fileBlob);
+    const docs = await enhancedPdfLoader(fileBlob, docId);
 
     // Check if this is an error document
     if (docs.length === 1 && docs[0].metadata.source === 'error') {
@@ -153,6 +252,7 @@ export async function processPdfWithEnhancedFeatures(
         metadata: {
           source: 'error',
           error: error instanceof Error ? error.message : String(error),
+          ...(docId && { docId }),
         },
       }),
     ];

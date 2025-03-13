@@ -86,7 +86,7 @@ export async function generateDocs(docId: string) {
   try {
     // Use enhanced PDF processing with better chunking
     console.log('--- Processing PDF with enhanced features... ---');
-    const splitDocs = await processPdfWithEnhancedFeatures(data);
+    const splitDocs = await processPdfWithEnhancedFeatures(data, docId);
     console.log(
       `--- Split into ${splitDocs.length} parts with enhanced processing ---`
     );
@@ -102,6 +102,11 @@ export async function generateDocs(docId: string) {
     const loader = new PDFLoader(data);
     const docs = await loader.load();
 
+    // Add docId to metadata for all documents
+    docs.forEach((doc) => {
+      doc.metadata.docId = docId;
+    });
+
     // Split the loaded document into smaller parts for easier processing
     console.log('--- Splitting the document into smaller parts... ---');
     const splitter = new RecursiveCharacterTextSplitter({
@@ -110,6 +115,12 @@ export async function generateDocs(docId: string) {
     });
 
     const splitDocs = await splitter.splitDocuments(docs);
+
+    // Ensure docId is preserved in all split documents
+    splitDocs.forEach((doc) => {
+      doc.metadata.docId = docId;
+    });
+
     console.log(
       `--- Split into ${splitDocs.length} parts with standard processing ---`
     );
@@ -122,9 +133,70 @@ async function namespaceExists(
   index: Index<RecordMetadata>,
   namespace: string
 ) {
-  if (namespace === null) throw new Error('No namespace value provided.');
-  const { namespaces } = await index.describeIndexStats();
-  return namespaces?.[namespace] !== undefined;
+  if (!namespace) throw new Error('No namespace value provided.');
+
+  try {
+    console.log(`Checking if namespace '${namespace}' exists in Pinecone...`);
+
+    // Method 1: Check using describeIndexStats
+    const stats = await index.describeIndexStats();
+    const availableNamespaces = stats.namespaces
+      ? Object.keys(stats.namespaces)
+      : [];
+    console.log(
+      `Available namespaces from stats: ${
+        availableNamespaces.join(', ') || 'none'
+      }`
+    );
+
+    const existsInStats = stats.namespaces?.[namespace] !== undefined;
+    const recordCount = stats.namespaces?.[namespace]?.recordCount || 0;
+
+    console.log(
+      `Namespace '${namespace}' ${
+        existsInStats ? `exists with ${recordCount} vectors` : 'does not exist'
+      } in stats`
+    );
+
+    // Method 2: Try to query the namespace directly
+    // This is more reliable as it checks if there are actual vectors in the namespace
+    try {
+      const queryResponse = await index.namespace(namespace).query({
+        vector: Array(1536).fill(0), // Zero vector
+        topK: 1,
+        includeMetadata: true,
+      });
+
+      // If we get here, the namespace exists and has vectors
+      const hasVectors =
+        queryResponse.matches && queryResponse.matches.length > 0;
+      console.log(`Namespace '${namespace}' has vectors: ${hasVectors}`);
+
+      if (hasVectors) {
+        console.log(
+          `Found ${queryResponse.matches.length} vectors in namespace '${namespace}'`
+        );
+        // Log the first match metadata to help with debugging
+        if (queryResponse.matches[0]?.metadata) {
+          console.log(
+            `First vector metadata:`,
+            queryResponse.matches[0].metadata
+          );
+        }
+      }
+
+      // Return true if either method confirms the namespace exists
+      return existsInStats || hasVectors;
+    } catch (queryError) {
+      console.log(`Query check failed: ${queryError}`);
+      // If query fails, fall back to stats check
+      return existsInStats;
+    }
+  } catch (error) {
+    console.error(`Error checking if namespace exists: ${error}`);
+    // Default to false on error to trigger regeneration
+    return false;
+  }
 }
 
 // Add a function to check if the index exists and create it if it doesn't
@@ -192,7 +264,17 @@ export async function generateEmbeddingsInPineconeVectorStore(docId: string) {
       return pineconeVectorStore;
     } else {
       // If the namespace does not exist, download the PDF from firestore via the stored Download URL & generate the embeddings and store them in the Pinecone vector store
+      console.log(
+        `--- Generating new embeddings for document ID: ${docId} ---`
+      );
       const splitDocs = await generateDocs(docId);
+
+      // Double-check that all documents have the docId in their metadata
+      splitDocs.forEach((doc) => {
+        if (!doc.metadata.docId) {
+          doc.metadata.docId = docId;
+        }
+      });
 
       console.log(
         `--- Storing the embeddings in namespace ${docId} in the ${indexName} Pinecone vector store... ---`
@@ -224,9 +306,43 @@ const generateLangchainCompletion = async (docId: string, question: string) => {
     let pineconeVectorStore;
 
     try {
-      pineconeVectorStore = await generateEmbeddingsInPineconeVectorStore(
-        docId
-      );
+      console.log(`Starting chat completion for document: ${docId}`);
+
+      // First, ensure the Pinecone index exists
+      await ensurePineconeIndex();
+
+      // Create embeddings instance
+      const embeddings = new OpenAIEmbeddings();
+
+      // Get the Pinecone index
+      const index = await pineconeClient.index(indexName);
+
+      // Check if namespace already exists - using the same check as in generateEmbeddingsInPineconeVectorStore
+      const namespaceAlreadyExists = await namespaceExists(index, docId);
+
+      if (namespaceAlreadyExists) {
+        console.log(
+          `--- Using existing embeddings from namespace ${docId} ---`
+        );
+
+        // Use existing embeddings
+        pineconeVectorStore = await PineconeStore.fromExistingIndex(
+          embeddings,
+          {
+            pineconeIndex: index,
+            namespace: docId,
+          }
+        );
+      } else {
+        console.log(
+          `--- Embeddings not found for ${docId}, generating new embeddings... ---`
+        );
+
+        // If embeddings don't exist, generate them using the same function as during upload
+        pineconeVectorStore = await generateEmbeddingsInPineconeVectorStore(
+          docId
+        );
+      }
     } catch (error) {
       console.error('Error with Pinecone vector store:', error);
       return `Error: Unable to access the document's AI embeddings. ${
