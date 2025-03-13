@@ -44,6 +44,71 @@ Experience the application live: [Chat with PDF AI](https://chat-with-pdf-ai-thr
 - **LangChain**: Framework for building LLM-powered applications
 - **OpenAI Embeddings**: For converting document text into vector representations
 
+## 🔍 Enhanced PDF Processing Pipeline
+
+The application features a sophisticated PDF processing pipeline designed to optimize document understanding and retrieval. This system transforms raw PDFs into AI-ready content through several key stages:
+
+### 1. Robust Text Extraction
+
+- **Advanced PDF Parsing**: Uses PDFLoader from LangChain to extract text content while preserving structure
+- **Error Detection**: Automatically identifies when minimal text is extracted (< 100 characters) and flags potential scanned documents
+- **Graceful Fallbacks**: Provides informative messages when documents can't be fully processed
+- **Metadata Preservation**: Maintains document metadata throughout the processing pipeline
+
+### 2. Dynamic Chunk Sizing
+
+- **Content-Aware Processing**: Analyzes document characteristics to determine optimal chunk sizes
+- **Adaptive Algorithm**: Automatically adjusts chunk size based on:
+  - Total document length (character count)
+  - Number of pages
+  - Content density
+- **Size Tiers**:
+  - Small documents (< 10 pages or < 20K chars): 500 character chunks
+  - Medium documents (10-50 pages or 20K-100K chars): 1000 character chunks
+  - Large documents (50-200 pages or 100K-500K chars): 1500 character chunks
+  - Very large documents (> 200 pages or > 500K chars): 2000 character chunks
+- **Performance Optimization**: Balances chunk granularity with processing efficiency
+
+### 3. Intelligent Text Splitting
+
+- **Context Preservation**: Uses 200-character overlaps between chunks to maintain context across boundaries
+- **Hierarchical Separators**: Prioritizes natural document breaks (paragraphs, sentences, words)
+- **RecursiveCharacterTextSplitter**: Leverages LangChain's advanced text splitting for optimal segmentation
+
+### 4. Vector Embedding Generation
+
+- **OpenAI Embeddings**: Converts text chunks into high-dimensional vector representations
+- **Semantic Understanding**: Captures meaning and context, not just keywords
+- **Efficient Storage**: Organizes embeddings in Pinecone vector database for fast retrieval
+- **Namespace Isolation**: Maintains separate vector spaces for each document
+
+### 5. Retrieval-Augmented Generation
+
+- **Semantic Search**: Finds the most relevant document chunks based on query similarity
+- **History-Aware Retrieval**: Considers conversation context when retrieving information
+- **Contextual Responses**: Generates answers based on retrieved document content
+- **Source Attribution**: Maintains connection to source material for verification
+
+### Technical Implementation
+
+The PDF processing pipeline is implemented in `lib/pdf-processing.ts` with these key components:
+
+```typescript
+// Core extraction function with error handling
+export async function enhancedPdfLoader(fileBlob: Blob): Promise<Document[]>
+
+// Dynamic chunk sizing based on document characteristics
+function calculateOptimalChunkSize(docs: Document[]): number
+
+// Intelligent text splitting with optimal chunking
+export async function enhancedTextSplitter(docs: Document[]): Promise<Document[]>
+
+// Main processing pipeline combining all steps
+export async function processPdfWithEnhancedFeatures(fileBlob: Blob): Promise<Document[]>
+```
+
+This pipeline ensures that documents of any size or complexity are processed optimally for AI interaction, providing users with accurate and contextually relevant responses to their queries.
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -123,6 +188,7 @@ PRO_TIER_PRICE_ID=
 2. Enable Firestore and Storage
 3. Set up authentication with Clerk
 4. Generate a service account key for Firebase Admin SDK
+5. Configure CORS for Firebase Storage using the provided cors.json file
 
 ### Pinecone Setup
 1. Create a Pinecone account and create an index named "chat-with-pdf-ai"

@@ -3,7 +3,7 @@
 import { generateEmbeddings } from '@/actions/generateEmbeddings';
 import { db, storage } from '@/firebase';
 import { useUser } from '@clerk/nextjs';
-import { doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import {
   getDownloadURL,
   ref,
@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useToast } from '@/components/ui/use-toast';
 
 export enum StatusText {
   UPLOADING = 'Uploading file...',
@@ -37,11 +38,10 @@ function useUpload(): UseUploadReturn {
   const [status, setStatus] = useState<Status | null>(null);
   const { user } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleUpload = async (file: File): Promise<void> => {
     if (!file || !user) return;
-
-    // TODO: FREE/PRO limitations...
 
     const fileIdToUploadTo = uuidv4(); // example: 123e4567-e89b-12d3-a456-426614174000
 
@@ -63,6 +63,11 @@ function useUpload(): UseUploadReturn {
       },
       (error) => {
         console.error('Error uploading file', error);
+        toast({
+          variant: 'destructive',
+          title: 'Upload Error',
+          description: `Failed to upload file: ${error.message}`,
+        });
       },
       async () => {
         setStatus(StatusText.UPLOADED);
@@ -79,10 +84,21 @@ function useUpload(): UseUploadReturn {
           createdAt: serverTimestamp(),
         });
 
+        // Process with enhanced PDF parsing
         setStatus(StatusText.GENERATING);
-        await generateEmbeddings(fileIdToUploadTo);
-
-        setFileId(fileIdToUploadTo);
+        try {
+          await generateEmbeddings(fileIdToUploadTo);
+          setFileId(fileIdToUploadTo);
+        } catch (error) {
+          console.error('Error processing document:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Processing Error',
+            description: `Failed to process document: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`,
+          });
+        }
       }
     );
   };

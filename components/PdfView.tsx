@@ -43,16 +43,39 @@ function PdfView({ url }: { url: string }) {
     const fetchFile = async () => {
       try {
         setError(null);
-        const response = await fetch(url);
 
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch PDF: ${response.status} ${response.statusText}`
+        // Option 1: Try direct loading first (this might work if CORS is eventually set up)
+        try {
+          const response = await fetch(url, {
+            // Add cache control to prevent caching issues
+            cache: 'no-store',
+            // Add mode: 'cors' explicitly
+            mode: 'cors',
+            // Add credentials: 'omit' to avoid sending cookies
+            credentials: 'omit',
+            headers: {
+              Accept: 'application/pdf',
+            },
+          });
+
+          if (response.ok) {
+            const file = await response.blob();
+            setFile(file);
+            return;
+          }
+        } catch (directError) {
+          console.warn(
+            'Direct fetch failed, trying alternative method:',
+            directError
           );
         }
 
-        const file = await response.blob();
-        setFile(file);
+        // Option 2: If direct loading fails, try loading the PDF directly in the Document component
+        // by passing the URL instead of a blob
+        setFile(null);
+
+        // Log the URL for debugging
+        console.log('Loading PDF directly from URL:', url);
       } catch (err) {
         console.error('Error fetching PDF:', err);
         setError(err instanceof Error ? err.message : 'Failed to load PDF');
@@ -249,48 +272,55 @@ function PdfView({ url }: { url: string }) {
           <h3 className="text-lg font-semibold">Error Loading PDF</h3>
           <p>{error}</p>
         </div>
-      ) : !file ? (
-        <div className="flex flex-col items-center justify-center p-8">
-          <Loader2Icon className="animate-spin h-20 w-20 text-indigo-600 mt-20" />
-          <p className="mt-4 text-gray-600">Loading PDF document...</p>
-        </div>
       ) : (
-        <div className="pdf-container w-full h-[calc(100vh-180px)] overflow-auto">
-          <div
-            className={`pdf-content flex items-center justify-center min-h-full ${
-              scale > 1 ? 'min-w-max' : ''
-            }`}
-          >
+        <div className="pdf-container overflow-auto h-full w-full flex justify-center">
+          {file ? (
+            // If we have a blob, use it
             <Document
-              loading={
-                <Loader2Icon className="animate-spin h-20 w-20 text-indigo-600 mt-20" />
-              }
               file={file}
-              rotate={rotation}
               onLoadSuccess={onDocumentLoadSuccess}
               onLoadError={onDocumentLoadError}
-              className="flex justify-center p-4"
+              loading={
+                <div className="flex flex-col items-center justify-center p-8">
+                  <Loader2Icon className="h-12 w-12 animate-spin mb-2" />
+                  <p>Loading PDF...</p>
+                </div>
+              }
             >
               <Page
-                className="shadow-lg"
-                scale={scale}
                 pageNumber={pageNumber}
+                width={containerDimensions.width * 0.9}
+                height={containerDimensions.height * 0.9}
+                scale={scale}
+                rotate={rotation}
                 renderTextLayer={true}
                 renderAnnotationLayer={true}
-                width={
-                  containerDimensions.width > 0
-                    ? Math.min(
-                        Math.max(
-                          containerDimensions.width * (scale > 1 ? 1 : 0.7),
-                          300
-                        ), // Adjust width based on zoom
-                        scale > 1.5 ? 1200 : containerDimensions.width - 50 // Allow wider width when zoomed in
-                      )
-                    : undefined
-                }
               />
             </Document>
-          </div>
+          ) : (
+            // If blob loading failed, try direct URL loading
+            <Document
+              file={url}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={onDocumentLoadError}
+              loading={
+                <div className="flex flex-col items-center justify-center p-8">
+                  <Loader2Icon className="h-12 w-12 animate-spin mb-2" />
+                  <p>Loading PDF directly...</p>
+                </div>
+              }
+            >
+              <Page
+                pageNumber={pageNumber}
+                width={containerDimensions.width * 0.9}
+                height={containerDimensions.height * 0.9}
+                scale={scale}
+                rotate={rotation}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
+              />
+            </Document>
+          )}
         </div>
       )}
 

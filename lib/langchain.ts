@@ -12,6 +12,7 @@ import { PineconeStore } from '@langchain/pinecone';
 import { Index, RecordMetadata } from '@pinecone-database/pinecone';
 import { adminDb } from '../firebaseAdmin';
 import { auth } from '@clerk/nextjs/server';
+import { processPdfWithEnhancedFeatures } from './pdf-processing';
 
 // Initialize the OpenAI model with API key and model name
 const model = new ChatOpenAI({
@@ -82,19 +83,39 @@ export async function generateDocs(docId: string) {
   // Load the PDF into a PDFDocument object
   const data = await response.blob();
 
-  // Load the PDF document from the specified path
-  console.log('--- Loading PDF document... ---');
-  const loader = new PDFLoader(data);
-  const docs = await loader.load();
+  try {
+    // Use enhanced PDF processing with better chunking
+    console.log('--- Processing PDF with enhanced features... ---');
+    const splitDocs = await processPdfWithEnhancedFeatures(data);
+    console.log(
+      `--- Split into ${splitDocs.length} parts with enhanced processing ---`
+    );
+    return splitDocs;
+  } catch (error) {
+    console.error(
+      'Enhanced PDF processing failed, falling back to standard processing:',
+      error
+    );
 
-  // Split the loaded document into smaller parts for easier processing
-  console.log('--- Splitting the document into smaller parts... ---');
-  const splitter = new RecursiveCharacterTextSplitter();
+    // Fallback to standard processing if enhanced processing fails
+    console.log('--- Loading PDF document with standard processing... ---');
+    const loader = new PDFLoader(data);
+    const docs = await loader.load();
 
-  const splitDocs = await splitter.splitDocuments(docs);
-  console.log(`--- Split into ${splitDocs.length} parts ---`);
+    // Split the loaded document into smaller parts for easier processing
+    console.log('--- Splitting the document into smaller parts... ---');
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
 
-  return splitDocs;
+    const splitDocs = await splitter.splitDocuments(docs);
+    console.log(
+      `--- Split into ${splitDocs.length} parts with standard processing ---`
+    );
+
+    return splitDocs;
+  }
 }
 
 async function namespaceExists(
