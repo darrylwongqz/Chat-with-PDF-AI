@@ -21,6 +21,22 @@ An intelligent document assistant that transforms static PDFs into interactive c
 
 Experience the application live: [Chat with PDF AI](https://chat-with-pdf-ai-three.vercel.app/)
 
+## 💳 Testing Pro Account
+
+To test the Pro account upgrade functionality without using a real credit card:
+
+1. Navigate to the upgrade page in the application
+2. Click on the "Upgrade to Pro" button
+3. Use the following test credit card details provided by Stripe:
+   - Card Number: `4242 4242 4242 4242`
+   - Expiration Date: Any future date (e.g., 12/34)
+   - CVC: Any 3 digits (e.g., 123)
+   - Name and Address: Any values
+
+This will simulate a successful payment and upgrade your account to Pro status in the test environment. The test card will not incur any actual charges.
+
+Note: For testing other scenarios (like declined payments), you can use different [test card numbers provided by Stripe](https://stripe.com/docs/testing#cards).
+
 ## 🛠️ Tech Stack
 
 ### Frontend
@@ -322,22 +338,6 @@ When deploying Chat with PDF AI at scale, several considerations must be address
   - Set up status page for transparency
 
 By addressing these considerations, Chat with PDF AI can scale effectively to handle enterprise-level workloads while maintaining performance and controlling costs.
-
-## 💳 Testing Pro Account
-
-To test the Pro account upgrade functionality without using a real credit card:
-
-1. Navigate to the upgrade page in the application
-2. Click on the "Upgrade to Pro" button
-3. Use the following test credit card details provided by Stripe:
-   - Card Number: `4242 4242 4242 4242`
-   - Expiration Date: Any future date (e.g., 12/34)
-   - CVC: Any 3 digits (e.g., 123)
-   - Name and Address: Any values
-
-This will simulate a successful payment and upgrade your account to Pro status in the test environment. The test card will not incur any actual charges.
-
-Note: For testing other scenarios (like declined payments), you can use different [test card numbers provided by Stripe](https://stripe.com/docs/testing#cards).
 
 ## 📄 License
 
